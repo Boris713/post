@@ -1,62 +1,91 @@
-# Resource API
+# Items API (Postgres)
 
-Simple in-memory REST API with Node.js and Express. No db, data is stored
-in an array and resets when the server restarts.
+This is my Week 6 REST API, but now it saves data to a real Postgres database instead of just keeping it in an array. So the data actually sticks around after the server restarts.
 
-## Run
+## Run it
+
+You need Node and a Postgres database. Can be local, or a free cloud one like Neon or Supabase.
 
 ```bash
 npm install
+psql "YOUR_DATABASE_URL" -f schema.sql   # makes the table, only run once
+cp .env.example .env                      # then put your connection string in .env
 npm start
 ```
 
-Server runs on http://localhost:3000
+Runs on http://localhost:3000
+
+## The table
+
+```sql
+CREATE TABLE IF NOT EXISTS items (
+  id SERIAL PRIMARY KEY,
+  name TEXT NOT NULL,
+  status TEXT DEFAULT 'todo'
+);
+```
 
 ## Endpoints
 
-| Method | Route              | Description              |
-| ------ | ------------------ | ------------------------ |
-| GET    | /api/resources     | List all                 |
-| GET    | /api/resources/:id | Get one (404 if missing) |
-| POST   | /api/resources     | Create (201)             |
-| PUT    | /api/resources/:id | Update (404 if missing)  |
-| DELETE | /api/resources/:id | Delete (404 if missing)  |
+| Method | Route          | What it does                                   |
+| ------ | -------------- | ---------------------------------------------- |
+| GET    | /api/items     | List all rows                                  |
+| GET    | /api/items/:id | Get one row, 404 if it's not there             |
+| POST   | /api/items     | Add a row, 400 if name is missing, returns 201 |
+| PUT    | /api/items/:id | Update a row, 404 if it's not there            |
+| DELETE | /api/items/:id | Delete a row, 404 if it's not there            |
 
 ## Test Evidence (curl)
 
-Status code shown in brackets at the end of each line.
+Status code is in brackets at the end of each line.
 
 ```
-$ curl http://localhost:3000/api/resources
+$ curl http://localhost:3000/api/items
 [] [200]
 
-$ curl -X POST http://localhost:3000/api/resources -H "Content-Type: application/json" -d '{"name":"Buy milk"}'
-{"id":1,"name":"Buy milk"} [201]
+$ curl -X POST http://localhost:3000/api/items -H "Content-Type: application/json" -d '{"name":"Buy milk","status":"todo"}'
+{"id":1,"name":"Buy milk","status":"todo"} [201]
 
-$ curl http://localhost:3000/api/resources/1
-{"id":1,"name":"Buy milk"} [200]
+$ curl -X POST http://localhost:3000/api/items -H "Content-Type: application/json" -d '{"name":"Walk dog"}'
+{"id":2,"name":"Walk dog","status":"todo"} [201]
 
-$ curl http://localhost:3000/api/resources/99
+$ curl -X POST http://localhost:3000/api/items -H "Content-Type: application/json" -d '{"status":"todo"}'
+{"error":"name is required"} [400]
+
+$ curl http://localhost:3000/api/items
+[{"id":1,"name":"Buy milk","status":"todo"},{"id":2,"name":"Walk dog","status":"todo"}] [200]
+
+$ curl http://localhost:3000/api/items/1
+{"id":1,"name":"Buy milk","status":"todo"} [200]
+
+$ curl http://localhost:3000/api/items/999
 {"error":"Not found"} [404]
 
-$ curl -X PUT http://localhost:3000/api/resources/1 -H "Content-Type: application/json" -d '{"name":"Buy oat milk"}'
-{"id":1,"name":"Buy oat milk"} [200]
+$ curl -X PUT http://localhost:3000/api/items/1 -H "Content-Type: application/json" -d '{"status":"done"}'
+{"id":1,"name":"Buy milk","status":"done"} [200]
 
-$ curl -X DELETE http://localhost:3000/api/resources/1
+$ curl -X PUT http://localhost:3000/api/items/999 -H "Content-Type: application/json" -d '{"status":"done"}'
+{"error":"Not found"} [404]
+
+$ curl -X DELETE http://localhost:3000/api/items/2
 {"deleted":true} [200]
 
-$ curl http://localhost:3000/api/resources
-[] [200]
+$ curl -X DELETE http://localhost:3000/api/items/2
+{"error":"Not found"} [404]
+
+$ curl http://localhost:3000/api/items
+[{"id":1,"name":"Buy milk","status":"done"}] [200]
 ```
 
-Server console (the logging middleware):
+## Persistence check
+
+I stopped the server, started it again, and the data was still there. That's the whole point of adding a database. It lives in Postgres now, not in memory:
 
 ```
-2026-07-13T03:24:57.106Z GET /api/resources
-2026-07-13T03:24:57.127Z POST /api/resources
-2026-07-13T03:24:57.137Z GET /api/resources/1
-2026-07-13T03:24:57.146Z GET /api/resources/99
-2026-07-13T03:24:57.155Z PUT /api/resources/1
-2026-07-13T03:24:57.163Z DELETE /api/resources/1
-2026-07-13T03:24:57.171Z GET /api/resources
+$ curl http://localhost:3000/api/items
+[{"id":1,"name":"Buy milk","status":"done"}] [200]
 ```
+
+## Testing in VS Code
+
+There's a requests.http file in here. If you have the REST Client extension, open it and hit "Send Request" over any block. Or just use Thunder Client or Postman on the same URLs.
