@@ -1,0 +1,36 @@
+### GET all items
+GET http://localhost:3000/api/items
+
+### GET one item
+GET http://localhost:3000/api/items/1
+
+### GET missing item (404)
+GET http://localhost:3000/api/items/999
+
+### CREATE an item (201)
+POST http://localhost:3000/api/items
+Content-Type: application/json
+
+{
+  "name": "Buy milk",
+  "status": "todo"
+}
+
+### CREATE with missing name (400 validation)
+POST http://localhost:3000/api/items
+Content-Type: application/json
+
+{
+  "status": "todo"
+}
+
+### UPDATE an item (200)
+PUT http://localhost:3000/api/items/1
+Content-Type: application/json
+
+{
+  "status": "done"
+}
+
+### DELETE an item (200)
+DELETE http://localhost:3000/api/items/2
